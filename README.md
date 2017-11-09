@@ -42,10 +42,11 @@ well in this area.
 
 Any contributions are welcome :smile:
 
+[ ] write batch inference code. (one-by-one inference is too slow for any online application)
+
 [ ] write export script for serving
 
 [ ] write code for fine-tuning, and attention training
-
 
  
 If you make use of this code, please consider citing:
@@ -53,7 +54,13 @@ If you make use of this code, please consider citing:
 ## Installation
 
 ```
-Tensorflow 1.3
+# Python 3
+
+# Tensorflow 1.3
+pip install tensorflow==1.3
+
+# OpenCV
+pip install opencv-contrib-python
 
 ```
 

@@ -44,6 +44,8 @@ import sys
 import tensorflow as tf
 from tensorflow.python.platform import app
 
+import cv2
+
 cmd_args = None
 
 _DISTANCE_THRESHOLD = 0.8
@@ -80,7 +82,7 @@ def read_image(image_path):
     return image_np
 
 
-def get_inliers(locations_1, descriptors_1, locations_2, descriptors_2):
+def get_inliers(locations_1, descriptors_1, locations_2, descriptors_2):  
   
   num_features_1 = locations_1.shape[0]
   # tf.logging.info("Loaded image 1's %d features" % num_features_1)
@@ -113,19 +115,7 @@ def get_inliers(locations_1, descriptors_1, locations_2, descriptors_2):
   return inliers, locations_1_to_use, locations_2_to_use
 
 
-def get_attention_image_byte(img_byte, locations, att_score):
-  """
-  Args:
-      img: image bytes. JPEG, PNG
-  """
-
-  # Convert image byte to 3 channel numpy array
-  with Image.open(io.BytesIO(img_byte)) as img:
-    img_np = load_image_into_numpy_array(img)
-
-  # print('att_score shape:', att_score.shape)  
-  # print('att_score:', att_score)
-  
+def get_attention_image_byte(att_score):  
   attention_np = np.squeeze(att_score, (0, 3)).astype(np.uint8)
 
   im = Image.fromarray(np.dstack((attention_np, attention_np, attention_np)))
@@ -135,7 +125,7 @@ def get_attention_image_byte(img_byte, locations, att_score):
 
     
 
-def get_ransac_image_byte(img_1, locations_1, descriptors_1, img_2, locations_2, descriptors_2, save_path=None):
+def get_ransac_image_byte(img_1, locations_1, descriptors_1, img_2, locations_2, descriptors_2, save_path=None, use_opencv_match_vis=True):
   """
   Args:
       img_1: image bytes. JPEG, PNG
@@ -157,6 +147,9 @@ def get_ransac_image_byte(img_1, locations_1, descriptors_1, img_2, locations_2,
   # Visualize correspondences, and save to file.
   fig, ax = plt.subplots(figsize=IMAGE_SIZE)
   inlier_idxs = np.nonzero(inliers)[0]
+  score = sum(inliers)
+  if score is None:
+    score = 0
 #   # For different size of image, transform img_1 to fit to img_2
 #   print('img_1 shape', img_1.shape)
 #   print('img_1 type', type(img_1))
@@ -168,24 +161,43 @@ def get_ransac_image_byte(img_1, locations_1, descriptors_1, img_2, locations_2,
 #   resize_img_1 = imresize(img_1, ratio, interp='bilinear', mode=None)
 #   print('resize_img_1 shape', resize_img_1.shape)
 
-  plot_matches(
-      ax,
-      img_1,
-      img_2,
-      locations_1_to_use,
-      locations_2_to_use,
-      np.column_stack((inlier_idxs, inlier_idxs)),
-      matches_color='b')
-  ax.axis('off')
-  ax.set_title('DELF correspondences')
-  extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())  
-  buf = io.BytesIO()
-  fig.savefig(buf, bbox_inches=extent, format='png')
-  plt.close('all') # close resources. 
-  score = sum(inliers)
-  if score is None:
-      score = 0
-  return buf.getvalue(), score
+  if use_opencv_match_vis:
+    inlier_matches = []
+    for idx in inlier_idxs:
+        inlier_matches.append(cv2.DMatch(idx, idx, 0))
+        
+    kp1 =[]
+    for point in locations_1_to_use:
+        kp = cv2.KeyPoint(point[1], point[0], _size=1)
+        kp1.append(kp)
+
+    kp2 =[]
+    for point in locations_2_to_use:
+        kp = cv2.KeyPoint(point[1], point[0], _size=1)
+        kp2.append(kp)
+
+
+    ransac_img = cv2.drawMatches(img_1, kp1, img_2, kp2, inlier_matches, None, flags=0)
+    ransac_img = cv2.cvtColor(ransac_img, cv2.COLOR_BGR2RGB)    
+    image_byte = cv2.imencode('.png', ransac_img)[1].tostring()
+
+  else:
+    plot_matches(
+        ax,
+        img_1,
+        img_2,
+        locations_1_to_use,
+        locations_2_to_use,
+        np.column_stack((inlier_idxs, inlier_idxs)),
+        matches_color='b')
+    ax.axis('off')
+    extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())      
+    buf = io.BytesIO()
+    fig.savefig(buf, bbox_inches=extent, format='png')
+    plt.close('all') # close resources. 
+    image_byte = buf.getvalue()
+
+  return image_byte, score
 
 
 def main(unused_argv):
