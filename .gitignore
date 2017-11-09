@@ -1,0 +1,20 @@
+# tf virtual env
+tf1.3
+tf1.2
+
+# dataset
+data
+
+# trained data
+parameters
+
+# temp
+temp_image
+.ipynb_checkpoints
+
+# setup file
+*.egg-info
+*pyc
+*~
+*pb2.py
+*pb2.pyc
