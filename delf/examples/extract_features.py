@@ -151,6 +151,10 @@ class InferenceHelper():
 
             self.locations, self.descriptors = feature_extractor.DelfFeaturePostProcessing(
                 boxes, features, config)
+            tf.summary.scalar('input_max_feature_num', self.input_max_feature_num) # Dummy summary
+            self.summary_merged = tf.summary.merge_all()
+            print("self.summary_merged:", self.summary_merged)
+            self.test_writer = tf.summary.FileWriter('./test_summary_log', graph)
 
 
 
@@ -174,11 +178,15 @@ class InferenceHelper():
         for i in range(num_images):
             # # Get next image.
             im = self.sess.run(self.image_tf, feed_dict={self.byte_value: image_bytes[i]})
+            
+            # For getting more information to draw graph
+            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+            run_metadata = tf.RunMetadata()
 
             # Extract and save features.
-            (locations_out, descriptors_out, feature_scales_out,
+            (summary, locations_out, descriptors_out, feature_scales_out,
                 attention_score_out, attention_out) = self.sess.run(
-                    [self.locations, self.descriptors, self.feature_scales, self.attention_score, self.attention],
+                    [self.summary_merged, self.locations, self.descriptors, self.feature_scales, self.attention_score, self.attention],
                     feed_dict={
                         self.input_image:
                             im,
@@ -188,12 +196,17 @@ class InferenceHelper():
                             list(self.config.image_scales),
                         self.input_max_feature_num:
                             self.config.delf_local_config.max_feature_num
-                    })
+                    },
+                    options=run_options,
+                    run_metadata=run_metadata)
+            self.test_writer.add_run_metadata(run_metadata, 'image%d' % i)
+            self.test_writer.add_summary(summary, i)
             location_np_list.append(locations_out)
             descriptor_np_list.append(descriptors_out)
             feature_scale_np_list.append(feature_scales_out)
             attention_score_np_list.append(attention_score_out)
             attention_np_list.append(attention_out)
+        self.test_writer.close()
 
         return location_np_list, descriptor_np_list, feature_scale_np_list, attention_score_np_list, attention_np_list
         
