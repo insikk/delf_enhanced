@@ -9,7 +9,7 @@ Features"](https://arxiv.org/abs/1612.06321)) which is more easy to use for belo
     * Get Local Descriptors from any image
     * Get Attention Image, so you can see why the DELFs are selected
     * Get Matching Image, so you can see why the image pair has high score
-* [DEMO Python Notebook](https://oss.navercorp.com/case/delf/blob/notebook/Feature%20Matching.ipynb) provide how to import and use this wrapper.
+
 * You also can load weight on a model build with its code. 
     * You now have full access on any tensors in the graph, such as attention
     * You can play with code level instead of just reproducing with exported model. 
